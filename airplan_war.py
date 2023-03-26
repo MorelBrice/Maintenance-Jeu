@@ -6,6 +6,7 @@ import pygame
 from pygame.locals import *
 from sys import exit
 import constantes
+import time
 
 # Initialize the game
 pygame.init()
@@ -14,6 +15,7 @@ pygame.display. set_caption('Airplane Wars')
 
 # Load the background map
 background = pygame.image.load('resources/image/background.png')
+gameover = pygame.image.load('resources/image/gameover.png')
 
 # Load the picture of the plane
 plane_img = pygame.image.load('resources/image/shoot.png')
@@ -28,6 +30,8 @@ enemy_frequency = constantes.NB_MIN_ENEMIES
 
 clock = pygame.time.Clock()
 running = True
+
+shot_fired = False
 
             
 # Enemy class
@@ -137,23 +141,6 @@ def dessiner_fond():
     screen.fill(0)
     screen.blit(background, (0, 0))
 
-def gerer_freq_tirs(shoot_frequency:int)->int:
-    """Gère la fréquence des tirs du joueur.
-
-    Args:
-        shoot_frequency (int): La vitesse de tir.
-
-    Returns:
-        int: La fréquence de tir modifiée.
-    """    
-    if shoot_frequency % 15 == 0:
-        bullet_sound.play()
-        player.shoot(bullet_img)
-    shoot_frequency += 1
-    if shoot_frequency >= 15:
-        shoot_frequency = constantes.SHOOTING_FREQUENCY
-    return shoot_frequency
-
 def gerer_puce(player:Player):
     """Gère les déplacements d'une puce et la supprime si elle sort hors de la fenètre.
 
@@ -244,6 +231,34 @@ def dessiner_epave_ennemis(enemies_down:Group, enemy1_down_sound:pygame.mixer.So
         enemy_down.down_index += 1
     return enemies_down
 
+# ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+def game_over(enemies1:Group, player:Player, joueur_down:Group)->Group:
+
+    down = []
+
+    boom = pygame.Rect(330, 624, 102, 126)
+
+    joueur_down = pygame.sprite.spritecollideany(player, enemies1)
+    if joueur_down != None:
+        screen.blit(gameover, (0, 0))
+        pygame.display.update()
+        down.append(player)
+        enemy1_down_sound.play()
+        pygame.time.wait(1000)
+        pygame.quit() 
+        exit()
+
+    return down
+    
+
+def dessiner_epave_joueur(joueurs_down:Group, player:Player, enemy1_down_sound:pygame.mixer.Sound)->Group:
+
+    screen.blit(player.image[player.img_index], player.rect)
+    # return joueurs_down
+
+# ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
 def gerer_deplacements_ennemis(enemies1:Group)->Group:
     """Gère les déplacements des ennemis.
 
@@ -284,6 +299,20 @@ def gerer_fermeture_jeu():
             pygame.quit()
             exit()
 
+def tirer(player:Player, shoot_frequency:int):
+    """Gère les tirs du joueur.
+
+    Args:
+        player (Player): Le joueur actuel.
+    """ 
+    key_pressed = pygame.key.get_pressed()
+
+    for event in pygame.event.get() :
+        if event.type == pygame.KEYUP:
+            if key_pressed[K_SPACE]:
+                bullet_sound.play()
+                player.shoot(bullet_img)
+
 while running:
 
     # Contrôlez la fréquence d'images maximale du jeu
@@ -293,7 +322,9 @@ while running:
     dessiner_fond()
 
     # Contrôler la fréquence des tirs de balles et des balles de feu
-    shoot_frequency = gerer_freq_tirs(shoot_frequency)
+    # shoot_frequency = gerer_freq_tirs(shoot_frequency)
+
+    tirer(player, shoot_frequency)
 
     # Déplacer la puce, la supprimer si elle dépasse le cadre de la fenêtre
     gerer_puce(player)
@@ -313,11 +344,18 @@ while running:
     # Dessinez l'animation de l'épave
     enemies_down = dessiner_epave_ennemis(enemies_down, enemy1_down_sound)
 
+    
+
+   
+
     # Déplacez l'avion ennemi, s'il dépasse la plage de la fenêtre, supprimez-le
     enemies1 = gerer_deplacements_ennemis(enemies1)
 
     # Update the screen
     pygame.display.update()
+
+    joueur_down = game_over(enemies1, player, enemies_down)
+    
 
     # Monitor keyboard events
     gerer_deplacements_joueur(player)
