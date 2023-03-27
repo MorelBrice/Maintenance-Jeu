@@ -126,6 +126,10 @@ enemy1_down_imgs.append(plane_img.subsurface(pygame.Rect(930, 697, 57, 43)))
 enemies_down = pygame.sprite.Group()
 
 
+background_song = pygame.mixer.Sound('resources/sound/Unreal_Super_Hero_3.mp3')
+background_song.set_volume(constantes.SOUND_VOLUME)
+
+
 bullet_sound = pygame.mixer.Sound('resources/sound/bullet.wav')
 bullet_sound.set_volume(constantes.SOUND_VOLUME)
 
@@ -134,6 +138,9 @@ bullet_rect = pygame.Rect(1004, 987, 9, 21)
 bullet_img = plane_img.subsurface(bullet_rect)
 shoot_frequency = constantes.SHOOTING_FREQUENCY
 
+score = 0
+run_once_stop = 0
+run_once_start = 0
 
 def dessiner_fond():
     """Redessine le fond.
@@ -211,7 +218,7 @@ def gerer_destruction_ennemis(enemies1:Group, player:Player, enemies_down:Group)
         enemies_down.add(enemy_down)
     return enemies_down
 
-def dessiner_epave_ennemis(enemies_down:Group, enemy1_down_sound:pygame.mixer.Sound)->Group:
+def dessiner_epave_ennemis(enemies_down:Group, enemy1_down_sound:pygame.mixer.Sound, score)->Group:
     """Dessine les ennemis détruits.
 
     Args:
@@ -224,14 +231,13 @@ def dessiner_epave_ennemis(enemies_down:Group, enemy1_down_sound:pygame.mixer.So
     for enemy_down in enemies_down:
         if enemy_down.down_index == 0:
             enemy1_down_sound.play()
+            score += 1
         if enemy_down.down_index > 7:
             enemies_down.remove(enemy_down)
             continue
         screen.blit(enemy_down.down_imgs[enemy_down.down_index // 2], enemy_down.rect)
         enemy_down.down_index += 1
-    return enemies_down
-
-# ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+    return enemies_down, score
 
 def game_over(enemies1:Group, player:Player, joueur_down:Group)->Group:
 
@@ -246,19 +252,9 @@ def game_over(enemies1:Group, player:Player, joueur_down:Group)->Group:
         down.append(player)
         enemy1_down_sound.play()
         pygame.time.wait(1000)
-        pygame.quit() 
-        exit()
-
+        exec(open("mainmenu.py").read())
     return down
     
-
-def dessiner_epave_joueur(joueurs_down:Group, player:Player, enemy1_down_sound:pygame.mixer.Sound)->Group:
-
-    screen.blit(player.image[player.img_index], player.rect)
-    # return joueurs_down
-
-# ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-
 def gerer_deplacements_ennemis(enemies1:Group)->Group:
     """Gère les déplacements des ennemis.
 
@@ -313,13 +309,47 @@ def tirer(player:Player, shoot_frequency:int):
                 bullet_sound.play()
                 player.shoot(bullet_img)
 
+
+def afficher_score(score):
+    font = pygame.font.Font('freesansbold.ttf', 32)
+ 
+    # create a text surface object,
+    # on which text is drawn on it.
+    text = font.render('Score : ' + str(score), True, constantes.BLACK)
+    
+    # create a rectangular object for the
+    # text surface object
+    textRect = text.get_rect()
+    
+    # set the center of the rectangular object.
+    textRect.center = (constantes.SCREEN_WIDTH // 2, constantes.Y * 1.95)
+
+    screen.blit(text, textRect)
+
+    high = open("highscore.txt", "r")
+
+    if int(high.read()) < int(score):
+        high = open("highscore.txt", "w")
+        high.write(str(score))
+    # print(high.read())
+    high.close()
+
+
 while running:
+
+    if run_once_stop == 0:
+        pygame.mixer.pause()
+        run_once_stop = 1
 
     # Contrôlez la fréquence d'images maximale du jeu
     clock.tick(45)
 
     # Draw the background
     dessiner_fond()
+
+    if run_once_start == 0:
+        background_song.play()
+        run_once_start = 1
 
     # Contrôler la fréquence des tirs de balles et des balles de feu
     # shoot_frequency = gerer_freq_tirs(shoot_frequency)
@@ -342,11 +372,9 @@ while running:
     enemies_down = gerer_destruction_ennemis(enemies1, player, enemies_down)
 
     # Dessinez l'animation de l'épave
-    enemies_down = dessiner_epave_ennemis(enemies_down, enemy1_down_sound)
+    enemies_down, score = dessiner_epave_ennemis(enemies_down, enemy1_down_sound, score)
 
-    
-
-   
+    afficher_score(score)
 
     # Déplacez l'avion ennemi, s'il dépasse la plage de la fenêtre, supprimez-le
     enemies1 = gerer_deplacements_ennemis(enemies1)
@@ -362,3 +390,4 @@ while running:
 
     # Process game exits
     gerer_fermeture_jeu()
+
